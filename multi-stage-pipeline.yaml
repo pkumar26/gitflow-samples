@@ -1,0 +1,58 @@
+trigger:
+  branches:
+    include:
+      - dev
+      - qa
+      - main
+
+stages:
+- stage: Build
+  jobs:
+  - job: Build
+    steps:
+    - script: echo Building...
+    # Add your build steps here
+    - publish: $(Build.ArtifactStagingDirectory)
+      artifact: drop
+
+- stage: DevDeploy
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/dev'))
+  jobs:
+  - deployment: Dev
+    environment: Dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - script: echo Deploying to Dev...
+
+- stage: QADeploy
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/qa'))
+  jobs:
+  - deployment: QA
+    environment: QA
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - script: echo Deploying to QA...
+
+- stage: ProdDeploy
+  dependsOn: QADeploy
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: Prod
+    environment: Production
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - script: echo Deploying to Production...
